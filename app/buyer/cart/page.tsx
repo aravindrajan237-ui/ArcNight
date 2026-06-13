@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Trash2, Minus, Plus, BadgePercent } from "lucide-react";
+import { ShoppingCart, Trash2, Minus, Plus, Sprout, BadgePercent } from "lucide-react";
 import {
   AppBar,
   Card,
@@ -11,7 +11,6 @@ import {
   PrimaryButton,
   PriceChip,
   EmptyState,
-  CropThumb,
   useToast,
 } from "@/components/ui";
 import { useCart } from "@/lib/cart";
@@ -134,12 +133,14 @@ export default function CartPage() {
               return (
               <Card key={i.listingId} inset className={avail ? "opacity-75" : undefined}>
                 <div className="flex items-center gap-3">
-                  <CropThumb
-                    crop={i.crop}
-                    photoUrl={i.photoUrl}
-                    className="h-16 w-16 shrink-0 rounded-xl"
-                    emojiClass="text-2xl"
-                  />
+                  {i.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={i.photoUrl} alt={i.crop} className="h-16 w-16 rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary-50 text-primary">
+                      <Sprout className="h-6 w-6" />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-ink">{capitalize(i.crop)}</p>

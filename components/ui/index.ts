@@ -3,7 +3,6 @@ export { Button, PrimaryButton, GhostButton, IconButton } from "./Button";
 export { Input, Textarea, Stepper } from "./Input";
 export { SegmentedToggle } from "./SegmentedToggle";
 export { Card, CardHeader } from "./Card";
-export { CropThumb } from "./CropThumb";
 export { Badge, AwardBadge, type AwardKey } from "./Badge";
 export { PriceChip } from "./PriceChip";
 export { StatusPill, type ListingStatus } from "./StatusPill";

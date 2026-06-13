@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Leaf, ShieldCheck, Navigation, Calendar, Star } from "lucide-react";
-import { Card, PriceChip, Badge, CropThumb } from "@/components/ui";
+import { Leaf, ShieldCheck, Navigation, Calendar, Star, Sprout } from "lucide-react";
+import { Card, PriceChip, Badge } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import { capitalize } from "@/lib/format";
 import type { ListingWithFarmer } from "@/app/api/listings/route";
@@ -15,7 +15,14 @@ export function ListingCard({ l }: { l: ListingWithFarmer }) {
     <Link href={`/buyer/listings/${l.id}`}>
       <Card interactive className="overflow-hidden">
         <div className="relative">
-          <CropThumb crop={l.crop} photoUrl={l.crop_photo_url} className="h-40" />
+          {l.crop_photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={l.crop_photo_url} alt={l.crop} className="h-40 w-full object-cover" />
+          ) : (
+            <div className="bg-map-grid flex h-40 items-center justify-center">
+              <Sprout className="h-10 w-10 text-primary/40" />
+            </div>
+          )}
           {typeof l.distance_km === "number" && (
             <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-pill bg-white/95 px-2.5 py-1 text-xs font-bold text-ink shadow-soft backdrop-blur">
               <Navigation className="h-3 w-3 text-primary" />

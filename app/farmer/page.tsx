@@ -16,7 +16,6 @@ import {
   StatusPill,
   PriceChip,
   Badge,
-  CropThumb,
   EmptyState,
   PrimaryButton,
   type ListingStatus,
@@ -160,12 +159,18 @@ export default async function FarmerHome() {
             {myListings.map((l) => (
               <Link key={l.id} href={`/farmer/listings/${l.id}`}>
                 <Card interactive className="overflow-hidden">
-                  <CropThumb
-                    crop={l.crop}
-                    photoUrl={l.crop_photo_url}
-                    className="h-28"
-                    emojiClass="text-4xl"
-                  />
+                  {l.crop_photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={l.crop_photo_url}
+                      alt={l.crop}
+                      className="h-28 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="bg-map-grid flex h-28 items-center justify-center">
+                      <Sprout className="h-8 w-8 text-primary/50" />
+                    </div>
+                  )}
                   <div className="p-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold capitalize text-ink">{l.crop}</h3>
