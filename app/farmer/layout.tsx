@@ -1,31 +1,32 @@
-import Link from "next/link";
-import { Leaf } from "lucide-react";
+"use client";
 
-/** Shell for the farmer area. Access is gated by middleware (role = farmer). */
+import { Home, Sprout, MessageCircle, User } from "lucide-react";
+import { BottomNav, Sidebar, type NavItem } from "@/components/ui";
+import { ToastProvider } from "@/components/ui/Toast";
+import { useT } from "@/lib/i18n/client";
+import { DemoBar } from "@/components/demo/DemoControls";
+
+/** Farmer shell: desktop sidebar + mobile bottom nav. Gated to role=farmer by middleware. */
 export default function FarmerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useT();
+  const nav: NavItem[] = [
+    { href: "/farmer", label: t("nav.home"), icon: Home },
+    { href: "/farmer/listings", label: t("nav.listings"), icon: Sprout },
+    { href: "/farmer/chat", label: t("nav.chat"), icon: MessageCircle },
+    { href: "/farmer/profile", label: t("nav.profile"), icon: User },
+  ];
   return (
-    <div className="min-h-screen">
-      <nav className="border-b border-zinc-200">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/farmer" className="flex items-center gap-2 text-harvest-600">
-            <Leaf className="h-5 w-5" />
-            <span className="font-bold">HarvestLink</span>
-            <span className="rounded bg-harvest-50 px-1.5 py-0.5 text-xs font-semibold text-harvest-600">
-              Farmer
-            </span>
-          </Link>
-          <div className="flex gap-4 text-sm font-medium text-zinc-600">
-            <Link href="/farmer" className="hover:text-harvest-600">
-              My listings
-            </Link>
-          </div>
-        </div>
-      </nav>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
-    </div>
+    <ToastProvider>
+      <DemoBar />
+      <div className="flex min-h-screen bg-surface">
+        <Sidebar items={nav} />
+        <div className="flex-1 pb-[76px] md:pb-0">{children}</div>
+        <BottomNav items={nav} />
+      </div>
+    </ToastProvider>
   );
 }

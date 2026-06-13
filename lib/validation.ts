@@ -5,11 +5,22 @@ const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
 const positive = z.number().positive();
 
+// ---- Auth (username + password) ----
+export const signupSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .regex(/^[a-zA-Z0-9_]{3,20}$/, "3–20 letters, numbers or underscore"),
+  password: z.string().min(6, "At least 6 characters").max(72),
+});
+export type SignupInput = z.infer<typeof signupSchema>;
+
 // ---- Onboarding / profile ----
 export const onboardingSchema = z.object({
   role: z.enum(["farmer", "buyer"]),
   full_name: z.string().min(2).max(80),
   phone: z.string().min(8).max(20).optional(),
+  language: z.enum(["en", "hi", "ta"]).default("en"),
   lat,
   lng,
   location_label: z.string().max(120).optional(),
@@ -17,17 +28,22 @@ export const onboardingSchema = z.object({
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 
 // ---- Listings ----
+// Create a harvest_listings row (migration schema).
 export const createListingSchema = z.object({
   crop: z.string().min(2).max(60),
+  variety: z.string().max(60).optional(),
   quantity_kg: positive,
-  price_per_kg: positive,
-  harvest_date: z.string().date(), // "YYYY-MM-DD"
-  negotiable: z.boolean().default(true),
-  organic: z.boolean().default(false),
-  lat,
-  lng,
+  offer_price: positive, // farmer's asking ₹/kg
+  market_price: positive.optional(), // AI reference (from /api/price-estimate)
+  expected_harvest_date: z.string().date(), // "YYYY-MM-DD"
+  is_organic: z.boolean().default(false),
+  is_negotiable: z.boolean().default(true),
+  crop_photo_url: z.string().url().optional(),
+  ai_quality_label: z.string().max(120).optional(),
+  // Optional explicit location; defaults to the farmer's profile location.
+  lat: lat.optional(),
+  lng: lng.optional(),
   location_label: z.string().max(120).optional(),
-  notes: z.string().max(1000).optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 
@@ -51,11 +67,9 @@ export type ListingFilters = z.infer<typeof listingFiltersSchema>;
 // ---- Offers ----
 export const createOfferSchema = z.object({
   listing_id: z.string().uuid(),
-  offer_price_per_kg: positive,
-  quantity_kg: positive,
+  proposed_price: positive, // ₹/kg the buyer offers
+  proposed_qty_kg: positive,
   message: z.string().max(500).optional(),
-  // Set when this offer is a counter to a previous one.
-  parent_offer_id: z.string().uuid().optional(),
 });
 export type CreateOfferInput = z.infer<typeof createOfferSchema>;
 
@@ -98,12 +112,19 @@ export type PaymentVerifyInput = z.infer<typeof paymentVerifySchema>;
 
 // ---- Messages ----
 // Chat is scoped to a harvest listing (realtime channel key) and addressed to
-// the counterparty. is_ai is set server-side, never by the client.
-export const createMessageSchema = z.object({
-  listing_id: z.string().uuid(),
-  receiver_id: z.string().uuid(),
-  body: z.string().min(1).max(2000),
-});
+// the counterparty. is_ai is set server-side, never by the client. A message
+// carries text and/or a voice clip (audio_url).
+export const createMessageSchema = z
+  .object({
+    listing_id: z.string().uuid(),
+    receiver_id: z.string().uuid(),
+    body: z.string().max(2000).optional(),
+    audio_url: z.string().url().optional(),
+    audio_duration_sec: z.number().nonnegative().max(600).optional(),
+  })
+  .refine((v) => (v.body && v.body.trim().length > 0) || v.audio_url, {
+    message: "A message needs text or a voice clip.",
+  });
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
 
 // ---- Reviews ----
@@ -113,3 +134,20 @@ export const createReviewSchema = z.object({
   comment: z.string().max(500).optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+
+// ---- Reports (scam / abuse) ----
+export const createReportSchema = z.object({
+  reported_user_id: z.string().uuid().optional(),
+  listing_id: z.string().uuid().optional(),
+  deal_id: z.string().uuid().optional(),
+  reason: z.enum([
+    "fraud_scam",
+    "fake_listing",
+    "payment_issue",
+    "abusive",
+    "spam",
+    "other",
+  ]),
+  description: z.string().max(1000).optional(),
+});
+export type CreateReportInput = z.infer<typeof createReportSchema>;

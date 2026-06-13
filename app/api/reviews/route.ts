@@ -1,6 +1,51 @@
-import { handle, ok, parseBody, requireUser, ApiError } from "@/lib/api";
+import { handle, ok, fail, parseBody, requireUser, ApiError } from "@/lib/api";
 import { createReviewSchema } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+// Reads live data per request — never prerender.
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /api/reviews?user=<id> — public reviews ABOUT a user (reviewee), newest
+ * first, each enriched with the reviewer's name + photo.
+ */
+export const GET = handle(async (req) => {
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get("user");
+  if (!userId) return fail(400, "`user` query param is required");
+
+  const admin = createAdminClient();
+  const { data: reviews, error } = await admin
+    .from("reviews")
+    .select("*")
+    .eq("reviewee_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  const reviewerIds = [...new Set((reviews ?? []).map((r) => r.reviewer_id))];
+  const { data: profiles } = reviewerIds.length
+    ? await admin
+        .from("profiles")
+        .select("id, full_name, photo_url")
+        .in("id", reviewerIds)
+    : { data: [] as { id: string; full_name: string | null; photo_url: string | null }[] };
+
+  const enriched = (reviews ?? []).map((r) => {
+    const p = profiles?.find((x) => x.id === r.reviewer_id);
+    return {
+      ...r,
+      reviewer_name: p?.full_name ?? "Anonymous",
+      reviewer_photo: p?.photo_url ?? null,
+    };
+  });
+
+  const count = enriched.length;
+  const avg = count
+    ? +(enriched.reduce((s, r) => s + Number(r.rating), 0) / count).toFixed(1)
+    : 0;
+
+  return ok({ reviews: enriched, count, average: avg });
+});
 
 /**
  * POST /api/reviews — leave a review after a fulfilled deal.

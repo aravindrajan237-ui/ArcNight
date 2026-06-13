@@ -10,6 +10,11 @@ import { updateSession } from "@/lib/supabase/middleware";
  * a role yet are bounced to /onboarding.
  */
 export async function middleware(request: NextRequest) {
+  // ⚠️ TEMPORARY demo bypass — skip auth/role gating so the app is testable.
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+    return NextResponse.next();
+  }
+
   const { response, supabase, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 

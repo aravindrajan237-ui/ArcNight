@@ -5,6 +5,7 @@
  */
 
 export type Role = "farmer" | "buyer";
+export type Language = "en" | "hi" | "ta";
 export type ListingStatus = "open" | "in_negotiation" | "closed";
 export type OfferStatus = "pending" | "accepted" | "rejected" | "countered";
 // Union of the original scaffold statuses and the migration-era statuses so the
@@ -28,10 +29,17 @@ export type Profile = {
   role: Role | null;
   full_name: string | null;
   phone: string | null;
+  photo_url: string | null;
+  language: Language | null;
   lat: number | null;
   lng: number | null;
-  location_label: string | null;
+  trust_score: number | null; // 0-100 reputation
+  completed_deals: number | null;
+  on_time_rate: number | null; // 0-100 (%)
   created_at: string;
+  // original scaffold column (not in the migration schema); optional so old
+  // routes that still read it keep compiling.
+  location_label?: string | null;
 };
 
 export type Listing = {
@@ -120,6 +128,28 @@ export type Message = {
   receiver_id: string | null;
   body: string;
   is_ai: boolean;
+  audio_url: string | null;
+  audio_duration_sec: number | null;
+  created_at: string;
+};
+
+export type ReportReason =
+  | "fraud_scam"
+  | "fake_listing"
+  | "payment_issue"
+  | "abusive"
+  | "spam"
+  | "other";
+
+export type Report = {
+  id: string;
+  reporter_id: string;
+  reported_user_id: string | null;
+  listing_id: string | null;
+  deal_id: string | null;
+  reason: ReportReason;
+  description: string | null;
+  status: "open" | "reviewing" | "resolved" | "dismissed";
   created_at: string;
 };
 
@@ -148,6 +178,9 @@ export type HarvestListing = {
   status: HarvestListingStatus;
   crop_photo_url: string | null;
   ai_quality_label: string | null;
+  lat: number | null;
+  lng: number | null;
+  location_label: string | null;
   created_at: string;
 };
 
@@ -190,6 +223,7 @@ export interface Database {
       harvest_listings: Row<HarvestListing>;
       price_history: Row<PriceHistory>;
       payments: Row<Payment>;
+      reports: Row<Report>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

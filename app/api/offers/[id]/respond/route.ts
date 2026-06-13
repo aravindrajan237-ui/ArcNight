@@ -2,23 +2,24 @@ import { handle, ok, parseBody, requireRole, ApiError } from "@/lib/api";
 import { respondOfferSchema } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Mutates per request — never prerender.
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/offers/[id]/respond — farmer accepts / rejects / counters an offer
- * on one of their listings. Farmer only, and must own the parent listing.
+ * on one of their listings (farmer only, must own the listing).
  *
- *  - accept:  offer.status = accepted (a deal can now be created from it)
+ *  - accept:  offer.status = accepted (a deal can be created from it)
  *  - reject:  offer.status = rejected
- *  - counter: original offer.status = countered; a new offer row (from the
- *             farmer's terms, still attributed to the buyer) is created with
- *             parent_offer_id pointing back, keeping the negotiation thread.
+ *  - counter: this offer = countered; a new pending offer is created with the
+ *             farmer's terms (migration `offers` has no parent link, so the
+ *             thread is reconstructed by created_at order).
  */
 export const POST = handle(async (req, { params }) => {
   const { user } = await requireRole("farmer");
   const body = await parseBody(req, respondOfferSchema);
-
   const admin = createAdminClient();
 
-  // Load the offer, then its listing, to verify ownership.
   const { data: offer, error: offerErr } = await admin
     .from("offers")
     .select("*")
@@ -26,14 +27,7 @@ export const POST = handle(async (req, { params }) => {
     .single();
 
   if (offerErr || !offer) throw new ApiError(404, "Offer not found");
-
-  const { data: listing, error: listingErr } = await admin
-    .from("listings")
-    .select("farmer_id")
-    .eq("id", offer.listing_id)
-    .single();
-  if (listingErr || !listing) throw new ApiError(404, "Listing not found");
-  if (listing.farmer_id !== user.id) {
+  if (offer.farmer_id !== user.id) {
     throw new ApiError(403, "You can only respond to offers on your listings");
   }
   if (offer.status !== "pending") {
@@ -48,6 +42,11 @@ export const POST = handle(async (req, { params }) => {
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+    // Reserve the listing while the deal is set up.
+    await admin
+      .from("harvest_listings")
+      .update({ status: "reserved" })
+      .eq("id", offer.listing_id);
     return ok({ action: "accept", offer: data });
   }
 
@@ -59,13 +58,6 @@ export const POST = handle(async (req, { params }) => {
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-
-    // If no other pending offers remain, reopen the listing.
-    await admin
-      .from("listings")
-      .update({ status: "open" })
-      .eq("id", offer.listing_id);
-
     return ok({ action: "reject", offer: data });
   }
 
@@ -76,10 +68,10 @@ export const POST = handle(async (req, { params }) => {
     .insert({
       listing_id: offer.listing_id,
       buyer_id: offer.buyer_id,
-      offer_price_per_kg: body.counter_price_per_kg!,
-      quantity_kg: body.counter_quantity_kg ?? offer.quantity_kg,
+      farmer_id: offer.farmer_id,
+      proposed_price: body.counter_price_per_kg!,
+      proposed_qty_kg: body.counter_quantity_kg ?? offer.proposed_qty_kg,
       message: body.message ?? null,
-      parent_offer_id: params.id,
       status: "pending",
     })
     .select("*")

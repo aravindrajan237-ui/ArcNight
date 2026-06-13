@@ -33,7 +33,9 @@ export const POST = handle(async (req) => {
       listing_id: body.listing_id,
       sender_id: user.id,
       receiver_id: body.receiver_id,
-      body: body.body,
+      body: body.body ?? "",
+      audio_url: body.audio_url ?? null,
+      audio_duration_sec: body.audio_duration_sec ?? null,
       is_ai: false,
     })
     .select("*")

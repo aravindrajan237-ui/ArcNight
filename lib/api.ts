@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError, type ZodSchema } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isDemo, demoUserId, demoRole } from "@/lib/demo-auth";
 import type { Profile, Role } from "@/lib/types";
 
 /**
@@ -42,6 +44,18 @@ export async function parseBody<T>(
 
 /** Require an authenticated user; returns the user + their profile. */
 export async function requireUser() {
+  // ⚠️ TEMPORARY demo bypass — admin client (RLS-free) acting as the demo user.
+  if (isDemo()) {
+    const supabase = createAdminClient();
+    const id = demoUserId();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
+    return { supabase, user: { id }, profile: (profile ?? null) as Profile | null };
+  }
+
   const supabase = createClient();
   const {
     data: { user },

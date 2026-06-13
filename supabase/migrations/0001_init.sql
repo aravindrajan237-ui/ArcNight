@@ -79,6 +79,11 @@ create table harvest_listings (
                           check (status in ('open','reserved','paid','fulfilled','cancelled')),
   crop_photo_url        text,
   ai_quality_label      text,
+  -- location of the harvest (defaults to the farmer's profile location on create);
+  -- enables map pins + haversine distance filters without a farms join
+  lat                   double precision,
+  lng                   double precision,
+  location_label        text,
   created_at            timestamptz not null default now()
 );
 

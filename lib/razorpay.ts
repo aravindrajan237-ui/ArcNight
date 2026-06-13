@@ -26,7 +26,8 @@ export async function createAdvanceOrder(params: {
   return razorpay.orders.create({
     amount: Math.round(params.amountInr * 100),
     currency: "INR",
-    receipt: `deal_${params.dealId}`,
+    // Razorpay caps receipt at 40 chars; a bare UUID is 36.
+    receipt: params.dealId,
     notes: { deal_id: params.dealId, purpose: "advance_15pct" },
   });
 }

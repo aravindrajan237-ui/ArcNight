@@ -54,7 +54,9 @@ export function subscribeToListingMessages(
 export async function sendListingMessage(input: {
   listing_id: string;
   receiver_id: string;
-  body: string;
+  body?: string;
+  audio_url?: string;
+  audio_duration_sec?: number;
 }): Promise<Message> {
   const res = await fetch("/api/messages", {
     method: "POST",

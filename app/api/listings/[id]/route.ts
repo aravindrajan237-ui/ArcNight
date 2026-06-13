@@ -1,38 +1,35 @@
 import { handle, ok, fail } from "@/lib/api";
-import { createClient } from "@/lib/supabase/server";
-import { estimateMarketPrice, fairDealScore } from "@/lib/ai";
-import type { Listing } from "@/lib/types";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { HarvestListing } from "@/lib/types";
 
-// Reads live data + calls Gemini per request — never prerender at build time.
+// Reads live data per request — never prerender at build time.
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/listings/[id] — single public contract, enriched with the AI market
- * estimate and fair_deal_score.
+ * GET /api/listings/[id] — single public harvest contract enriched with the
+ * farmer's trust info. fair_deal_score is read from the stored column.
  */
 export const GET = handle(async (_req, { params }) => {
-  const supabase = createClient();
+  const admin = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("listings")
+  const { data, error } = await admin
+    .from("harvest_listings")
     .select("*")
     .eq("id", params.id)
     .single();
 
   if (error || !data) return fail(404, "Listing not found");
+  const listing = data as HarvestListing;
 
-  const listing = data as Listing;
-  const estimate = await estimateMarketPrice({
-    crop: listing.crop,
-    locationLabel: listing.location_label,
-    askingPricePerKg: listing.price_per_kg,
-  });
+  const { data: farmer } = await admin
+    .from("profiles")
+    .select("id, full_name, photo_url, trust_score, completed_deals, on_time_rate")
+    .eq("id", listing.farmer_id)
+    .single();
 
   return ok({
     ...listing,
-    market_estimate_per_kg: estimate.estimate_per_kg,
-    market_estimate_low: estimate.low_per_kg,
-    market_estimate_high: estimate.high_per_kg,
-    fair_deal_score: fairDealScore(listing.price_per_kg, estimate.estimate_per_kg),
+    verified: !!listing.ai_quality_label,
+    farmer: farmer ?? null,
   });
 });

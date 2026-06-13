@@ -1,72 +1,51 @@
-import { createClient } from "@/lib/supabase/server";
-import { estimateMarketPrice, fairDealScore } from "@/lib/ai";
-import { FairnessBadge } from "@/components/FairnessBadge";
-import type { Listing } from "@/lib/types";
+import Link from "next/link";
+import { Trophy } from "lucide-react";
+import { getMe, firstName } from "@/lib/session";
+import { Avatar, Badge } from "@/components/ui";
+import { BuyerExplore } from "@/components/buyer/BuyerExplore";
+import { getT } from "@/lib/i18n/server";
 
-/**
- * Buyer dashboard. Server Component — lists open harvests with a fair-deal
- * score. Full filtering (crop, distance, price, organic…) is served by
- * GET /api/listings; this page renders the latest open listings as a starting
- * point that you can wire the filter UI + Leaflet map onto next.
- */
+export const dynamic = "force-dynamic";
+
+function greetKey() {
+  const h = new Date().getHours();
+  return h < 12 ? "greet.morning" : h < 17 ? "greet.afternoon" : "greet.evening";
+}
+
 export default async function BuyerDashboard() {
-  const supabase = createClient();
-
-  const { data } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const listings = (data ?? []) as Listing[];
-
-  const enriched = await Promise.all(
-    listings.map(async (l) => {
-      const est = await estimateMarketPrice({
-        crop: l.crop,
-        locationLabel: l.location_label,
-        askingPricePerKg: l.price_per_kg,
-      });
-      return { l, score: fairDealScore(l.price_per_kg, est.estimate_per_kg) };
-    }),
-  );
+  const t = getT();
+  const { profile } = await getMe();
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Browse harvests</h1>
-        <p className="text-sm text-zinc-600">
-          Make a fair offer directly to the farmer. We never take a cut.
-        </p>
+    <div>
+      {/* Greeting header */}
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-6 sm:px-6">
+        <div>
+          <p className="text-sm font-medium text-slate">{t(greetKey())},</p>
+          <h1 className="text-2xl font-extrabold text-ink">
+            {firstName(profile)} 👋
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/leaderboard">
+            <Badge tone="warning" icon={<Trophy className="h-3.5 w-3.5" />}>
+              {t("common.leaderboard")}
+            </Badge>
+          </Link>
+          <Link href="/buyer/profile">
+            <Avatar name={profile?.full_name} src={profile?.photo_url} size="md" />
+          </Link>
+        </div>
       </header>
 
-      {enriched.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500">
-          No open harvests right now. Filter with{" "}
-          <code className="rounded bg-zinc-100 px-1">GET /api/listings</code>.
-        </div>
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {enriched.map(({ l, score }) => (
-            <li key={l.id} className="rounded-xl border border-zinc-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold capitalize">{l.crop}</h3>
-                <span className="text-sm font-semibold text-harvest-600">
-                  ₹{l.price_per_kg}/kg
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-zinc-600">
-                {l.quantity_kg} kg · harvest {l.harvest_date}
-                {l.location_label ? ` · ${l.location_label}` : ""}
-              </p>
-              <div className="mt-3">
-                <FairnessBadge score={score} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <p className="mx-auto mt-1 max-w-5xl px-4 text-slate sm:px-6">
+        {t("buyer.browseSub")}{" "}
+        <span className="font-semibold text-primary">0% commission.</span>
+      </p>
+
+      <div className="mt-4">
+        <BuyerExplore meLat={profile?.lat ?? null} meLng={profile?.lng ?? null} />
+      </div>
     </div>
   );
 }
