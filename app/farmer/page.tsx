@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getMe, firstName } from "@/lib/session";
 import { getT } from "@/lib/i18n/server";
+import { OffersList } from "@/components/farmer/OffersList";
 import {
   Avatar,
   Card,
@@ -124,23 +125,16 @@ export default async function FarmerHome() {
       {newOffers.length > 0 && (
         <section className="mt-8">
           <SectionHead title={t("farmer.newOffers")} badge={newOffers.length} />
-          <div className="space-y-3">
-            {newOffers.slice(0, 4).map((o) => (
-              <Link key={o.id} href={`/farmer/listings/${o.listing_id}`}>
-                <Card interactive inset className="flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-ink">
-                      {buyerName(o.buyer_id)}
-                    </p>
-                    <p className="text-sm text-slate">
-                      wants {o.proposed_qty_kg} kg of {cropOf(o.listing_id)}
-                    </p>
-                  </div>
-                  <PriceChip amount={Number(o.proposed_price)} />
-                </Card>
-              </Link>
-            ))}
-          </div>
+          <OffersList
+            offers={newOffers.map((o) => ({
+              id: o.id,
+              listingId: o.listing_id,
+              buyerName: buyerName(o.buyer_id),
+              crop: cropOf(o.listing_id),
+              qty: Number(o.proposed_qty_kg),
+              price: Number(o.proposed_price),
+            }))}
+          />
         </section>
       )}
 
@@ -215,7 +209,7 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <Card className="p-4">
+    <Card className="min-w-0 p-3 sm:p-4">
       <span
         className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
           accent ? "bg-accent-50 text-accent-700" : "bg-primary-50 text-primary"
@@ -223,10 +217,10 @@ function Stat({
       >
         {icon}
       </span>
-      <p className="mt-2 text-2xl font-extrabold tabular-nums text-ink">
+      <p className="mt-2 truncate text-xl font-extrabold tabular-nums text-ink sm:text-2xl">
         {value}
       </p>
-      <p className="text-xs font-medium text-slate">{label}</p>
+      <p className="truncate text-xs font-medium text-slate">{label}</p>
     </Card>
   );
 }

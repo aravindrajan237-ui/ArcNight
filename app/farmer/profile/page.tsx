@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocationEditor } from "@/components/LocationEditor";
+import { ProfileEditor } from "@/components/ProfileEditor";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,11 @@ export default async function FarmerProfile() {
           </p>
         </div>
 
+        <ProfileEditor
+          initialName={profile?.full_name ?? ""}
+          initialPhoto={profile?.photo_url ?? null}
+        />
+
         <div className="grid grid-cols-3 gap-3">
           <Stat icon={<Sprout className="h-5 w-5" />} label="Deals" value={deals} />
           <Stat icon={<BadgeIndianRupee className="h-5 w-5" />} label="Trust" value={stars.toFixed(1)} />
@@ -80,10 +86,10 @@ export default async function FarmerProfile() {
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <Card className="flex flex-col items-center p-4 text-center">
+    <Card className="flex min-w-0 flex-col items-center p-3 text-center sm:p-4">
       <span className="mb-1 text-primary">{icon}</span>
-      <span className="text-xl font-extrabold text-ink">{value}</span>
-      <span className="text-xs text-slate">{label}</span>
+      <span className="max-w-full truncate text-lg font-extrabold text-ink sm:text-xl">{value}</span>
+      <span className="truncate text-xs text-slate">{label}</span>
     </Card>
   );
 }

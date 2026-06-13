@@ -177,9 +177,22 @@ export function ChatRoom({
   // Realtime subscription (human + AI messages on this listing).
   useEffect(() => {
     const unsub = subscribeToListingMessages(listingId, (m) => {
-      setMessages((prev) =>
-        prev.some((x) => x.id === m.id) ? prev : [...prev, m],
-      );
+      setMessages((prev) => {
+        // Already have this exact row → ignore (avoids realtime double-fire).
+        if (prev.some((x) => x.id === m.id)) return prev;
+        // Reconcile our own optimistic "temp-" message: drop the matching temp
+        // (same sender + same text/audio) so the sender doesn't see it twice.
+        const deduped = prev.filter(
+          (x) =>
+            !(
+              x.id.startsWith("temp-") &&
+              x.sender_id === m.sender_id &&
+              x.body === m.body &&
+              x.audio_url === m.audio_url
+            ),
+        );
+        return [...deduped, m];
+      });
     });
     return unsub;
   }, [listingId]);

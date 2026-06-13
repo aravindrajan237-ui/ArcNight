@@ -91,8 +91,18 @@ export default function NewListingPage() {
 
   // ---- Voice ----
   async function handleVoice() {
+    // Web Speech needs a secure context (https / localhost) — on a network IP
+    // or embedded preview it silently fails without ever prompting for the mic.
+    const host = typeof location !== "undefined" ? location.hostname : "";
+    const secure =
+      typeof window !== "undefined" &&
+      (window.isSecureContext || host === "localhost" || host === "127.0.0.1");
+    if (!secure) {
+      toast.error(t("voice.failed"), t("voice.insecure"));
+      return;
+    }
     if (!isVoiceSupported()) {
-      toast.error("Voice not supported", "Please type the details instead.");
+      toast.error(t("voice.failed"), "Use Chrome or Edge for voice input.");
       return;
     }
     setListening(true);
@@ -222,14 +232,14 @@ export default function NewListingPage() {
       <main className="mx-auto max-w-xl space-y-7 px-4 pb-44 pt-6 sm:px-6 md:pb-32">
         {/* Voice hero */}
         <Card inset className="bg-primary text-white">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-lg font-extrabold">{t("nl.speak")}</p>
               <p className="text-sm text-white/80">
                 {t("nl.speakHint")}
               </p>
             </div>
-            <div className="flex gap-1 rounded-pill bg-white/15 p-1">
+            <div className="flex shrink-0 gap-1 rounded-pill bg-white/15 p-1">
               {VOICE_LANGS.map((l) => (
                 <button
                   key={l.code}

@@ -51,6 +51,18 @@ drop policy if exists voice_auth_insert on storage.objects;
 create policy voice_auth_insert on storage.objects
   for insert to authenticated with check (bucket_id = 'voice-messages');
 
+-- ---- Public buckets for avatars (#6) + crop photos (also created on-demand) ----
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true), ('crop-photos', 'crop-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists avatars_public_read on storage.objects;
+create policy avatars_public_read on storage.objects
+  for select using (bucket_id in ('avatars', 'crop-photos'));
+drop policy if exists avatars_auth_insert on storage.objects;
+create policy avatars_auth_insert on storage.objects
+  for insert to authenticated with check (bucket_id in ('avatars', 'crop-photos'));
+
 -- ---- Enable Supabase Realtime on chat messages (idempotent) ----
 do $$ begin
   alter publication supabase_realtime add table messages;

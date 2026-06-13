@@ -4,6 +4,7 @@ import { AppBar } from "@/components/ui";
 import { CheckoutClient } from "@/components/buyer/CheckoutClient";
 import { ReportButton } from "@/components/ReportButton";
 import { getT } from "@/lib/i18n/server";
+import { capitalize } from "@/lib/format";
 import type { Deal, HarvestListing } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function BuyerCheckout({
     .select("crop")
     .eq("id", d.listing_id)
     .single();
-  const crop = (listing as Pick<HarvestListing, "crop"> | null)?.crop ?? "harvest";
+  const crop = capitalize((listing as Pick<HarvestListing, "crop"> | null)?.crop ?? "harvest");
 
   const total = Number(d.total_amount);
   const advance = Number(d.advance_amount);

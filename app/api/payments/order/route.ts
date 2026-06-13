@@ -32,10 +32,24 @@ export const POST = handle(async (req) => {
   }
   if (deal.advance_paid) throw new ApiError(409, "Advance already paid");
 
-  const order = await createAdvanceOrder({
-    amountInr: Number(deal.advance_amount),
-    dealId: deal.id,
-  });
+  const advanceInr = Number(deal.advance_amount);
+  // Razorpay rejects amounts under ₹1 (100 paise).
+  if (!Number.isFinite(advanceInr) || advanceInr < 1) {
+    throw new ApiError(400, "Advance amount is too small to process.");
+  }
+
+  let order;
+  try {
+    order = await createAdvanceOrder({ amountInr: advanceInr, dealId: deal.id });
+  } catch (err) {
+    // Surface a clean gateway error instead of an unhandled 500.
+    const desc =
+      (err as { error?: { description?: string } })?.error?.description ??
+      (err as Error)?.message ??
+      "Payment gateway error";
+    console.error("[payments/order] razorpay failed:", err);
+    throw new ApiError(502, `Could not start payment: ${desc}`);
+  }
 
   // Record the pending advance payment so /verify can cross-check the order id.
   const { error: payErr } = await admin.from("payments").insert({
