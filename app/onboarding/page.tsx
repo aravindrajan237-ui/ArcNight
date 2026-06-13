@@ -237,7 +237,7 @@ export default function OnboardingPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="9876543210"
-              hint="Used for WhatsApp deal receipts."
+              hint="Optional — used for order updates."
               leftIcon={<Phone className="h-5 w-5" />}
               inputMode="tel"
             />

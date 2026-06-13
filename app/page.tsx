@@ -80,7 +80,7 @@ export default function LandingPage() {
           <Feature
             icon={<FileSignature className="h-5 w-5" />}
             title="E-signed agreement"
-            body="Each deal generates a digital PDF contract, sent to both parties on WhatsApp."
+            body="Each deal generates a digital, e-signed PDF contract both parties can download."
           />
           <Feature
             icon={<BadgePercent className="h-5 w-5" />}

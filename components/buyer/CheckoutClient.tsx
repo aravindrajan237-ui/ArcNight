@@ -95,7 +95,7 @@ export function CheckoutClient({
             if (!verifyRes.ok) throw new Error(v.error ?? "Verification failed");
             setPdfUrl(v.data.agreement_pdf_url ?? null);
             setDone(true);
-            toast.success("Advance paid 🎉", "Agreement sent to WhatsApp.");
+            toast.success("Advance paid 🎉", "Your agreement is ready to download.");
           } catch (e) {
             toast.error("Verification failed", e instanceof Error ? e.message : undefined);
           }
@@ -127,7 +127,7 @@ export function CheckoutClient({
             <Link href="/buyer/orders">
               <Button variant="outline" fullWidth>{t("co.goOrders")}</Button>
             </Link>
-            <p className="text-sm font-semibold text-success">{t("co.whatsapp")}</p>
+            <p className="text-sm font-semibold text-success">{t("co.ready")}</p>
           </>
         }
       />

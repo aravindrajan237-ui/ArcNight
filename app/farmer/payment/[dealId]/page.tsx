@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, MessageCircleMore } from "lucide-react";
+import { Download } from "lucide-react";
 import { getMe } from "@/lib/session";
 import { AppBar, Card, SuccessState, PrimaryButton, Button } from "@/components/ui";
 import type { Deal, HarvestListing } from "@/lib/types";
@@ -56,9 +56,6 @@ export default async function FarmerPayment({
                     Agreement generating…
                   </PrimaryButton>
                 )}
-                <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-success">
-                  <MessageCircleMore className="h-4 w-4" /> Receipt sent to your WhatsApp ✓
-                </p>
               </>
             }
           >

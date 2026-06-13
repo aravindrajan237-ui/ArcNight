@@ -65,11 +65,11 @@ function LoginInner() {
       return;
     }
     if (password.length < 6) {
-      setError(t("auth.usernameHint"));
+      setError(t("auth.passwordHint"));
       return;
     }
     if (mode === "signup" && password !== confirm) {
-      setError(t("auth.confirmPassword"));
+      setError(t("auth.passwordMismatch"));
       return;
     }
 

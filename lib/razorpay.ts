@@ -9,8 +9,8 @@ import crypto from "node:crypto";
 
 export function getRazorpay() {
   return new Razorpay({
-    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+    key_secret: process.env.RAZORPAY_KEY_SECRET ?? "",
   });
 }
 
@@ -42,7 +42,7 @@ export function verifyPaymentSignature(params: {
   signature: string;
 }): boolean {
   const expected = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET ?? "")
     .update(`${params.orderId}|${params.paymentId}`)
     .digest("hex");
 

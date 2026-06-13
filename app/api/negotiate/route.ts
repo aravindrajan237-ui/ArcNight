@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handle, ok, parseBody, requireUser } from "@/lib/api";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { estimatePrice } from "@/lib/pricing";
 import { getGeminiModel } from "@/lib/ai";
 
@@ -39,7 +40,7 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
 export const POST = handle(async (req) => {
-  const { supabase, user } = await requireUser();
+  const { user } = await requireUser();
   const body = await parseBody(req, bodySchema);
 
   // 1) Ground in the fair band from the pricing engine.
@@ -93,10 +94,12 @@ Respond ONLY as JSON: {"message": string, "recommended_price": number}`;
   }
 
   // 3) Best-effort: persist the AI reply into the shared listing thread.
-  //    sender_id = auth.uid() satisfies the messages RLS insert policy.
+  //    The mediator is system-generated, so insert with the admin (service
+  //    role) client to bypass RLS reliably regardless of who triggered it.
   let message_id: string | null = null;
   try {
-    const { data } = await supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("messages")
       .insert({
         listing_id: body.listing_id,
