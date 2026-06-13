@@ -15,6 +15,7 @@ import {
 } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/client";
 import { VoiceMessage } from "./VoiceMessage";
+import { ChatText } from "./ChatText";
 import { useT } from "@/lib/i18n/client";
 import type { Message } from "@/lib/types";
 
@@ -330,7 +331,7 @@ export function ChatRoom({
           if (m.is_ai) {
             return (
               <ChatBubble key={m.id} variant="ai" time={fmtTime(m.created_at)}>
-                {m.body}
+                <ChatText text={m.body} />
               </ChatBubble>
             );
           }
@@ -344,8 +345,10 @@ export function ChatRoom({
             >
               {m.audio_url ? (
                 <VoiceMessage url={m.audio_url} duration={m.audio_duration_sec} dark={mine} />
-              ) : (
+              ) : mine ? (
                 m.body
+              ) : (
+                <ChatText text={m.body} />
               )}
             </ChatBubble>
           );

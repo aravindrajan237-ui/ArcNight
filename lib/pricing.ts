@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { translate } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * HarvestLink pricing engine (A).
@@ -43,6 +45,7 @@ interface Point {
 export async function estimatePrice(
   crop: string,
   region: string,
+  locale: Locale = "en",
 ): Promise<PriceEstimate> {
   const cropKey = crop.trim().toLowerCase();
   const regionKey = region.trim();
@@ -67,13 +70,13 @@ export async function estimatePrice(
       estimate: 0,
       low: 0,
       high: 0,
-      basis: "No price history available for this crop and region yet.",
+      basis: translate(locale, "pe.none"),
       points_used: 0,
       source: "none",
     };
   }
 
-  return forecast(cropKey, regionKey, points, source);
+  return forecast(cropKey, regionKey, points, source, locale);
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +88,7 @@ function forecast(
   region: string,
   pointsIn: Point[],
   source: PriceEstimate["source"],
+  locale: Locale,
 ): PriceEstimate {
   // Sort ascending by time.
   const points = [...pointsIn].sort((a, b) => a.t - b.t);
@@ -117,12 +121,14 @@ function forecast(
   const high = estimate + spread;
 
   const slopePerWeek = m * 7;
+  const rate = Math.abs(slopePerWeek).toFixed(1);
   const direction =
     Math.abs(slopePerWeek) < 0.05
-      ? "flat"
+      ? translate(locale, "pe.dir.flat")
       : slopePerWeek > 0
-        ? `rising ~₹${slopePerWeek.toFixed(1)}/kg per week`
-        : `falling ~₹${Math.abs(slopePerWeek).toFixed(1)}/kg per week`;
+        ? translate(locale, "pe.dir.rising", { rate })
+        : translate(locale, "pe.dir.falling", { rate });
+  const sourceLabel = translate(locale, `pe.source.${source}`);
 
   return {
     crop,
@@ -130,10 +136,13 @@ function forecast(
     estimate: round2(estimate),
     low: round2(low),
     high: round2(high),
-    basis:
-      `7-day moving average ₹${round2(movingAvg)}/kg blended with a ` +
-      `least-squares trend (${direction}) projected ${FORECAST_DAYS} days out, ` +
-      `using ${n} price point${n === 1 ? "" : "s"} (${source}).`,
+    basis: translate(locale, "pe.basis", {
+      avg: round2(movingAvg),
+      direction,
+      days: FORECAST_DAYS,
+      n,
+      source: sourceLabel,
+    }),
     points_used: n,
     source,
   };

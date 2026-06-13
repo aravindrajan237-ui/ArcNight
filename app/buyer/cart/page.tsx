@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Trash2, Minus, Plus, Sprout, BadgePercent } from "lucide-react";
+import { ShoppingCart, Trash2, Minus, Plus, BadgePercent } from "lucide-react";
 import {
   AppBar,
   Card,
@@ -11,6 +11,7 @@ import {
   PrimaryButton,
   PriceChip,
   EmptyState,
+  CropThumb,
   useToast,
 } from "@/components/ui";
 import { useCart } from "@/lib/cart";
@@ -24,13 +25,65 @@ export default function CartPage() {
   const t = useT();
   const [busy, setBusy] = useState(false);
 
+  // Live availability for each cart item: a listing someone else has already
+  // reserved/bought is "out of stock"; one past its harvest date is "expired".
+  type Live = { status: string; expected_harvest_date: string | null };
+  const [live, setLive] = useState<Record<string, Live>>({});
+  const today = new Date().toISOString().slice(0, 10);
+
+  const ids = cart.items.map((i) => i.listingId).join(",");
+  useEffect(() => {
+    const idList = ids ? ids.split(",") : [];
+    if (idList.length === 0) {
+      setLive({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/listings/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: idList }),
+        });
+        const json = await res.json();
+        if (!cancelled && res.ok) setLive(json.data?.statuses ?? {});
+      } catch {
+        /* leave items available if the check fails */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ids]);
+
+  // status: null = available, "sold" = bought by someone, "expired" = past date
+  function availability(listingId: string): null | "sold" | "expired" {
+    const s = live[listingId];
+    if (!s) return null;
+    if (s.status !== "open") return "sold";
+    if (s.expected_harvest_date && s.expected_harvest_date < today) return "expired";
+    return null;
+  }
+
+  const buyableCount = useMemo(
+    () => cart.items.filter((i) => availability(i.listingId) === null).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cart.items, live, today],
+  );
+
   async function checkout() {
     if (cart.items.length === 0) return;
+    const buyable = cart.items.filter((i) => availability(i.listingId) === null);
+    if (buyable.length === 0) {
+      toast.error(t("cart.noneAvailable"));
+      return;
+    }
     setBusy(true);
     try {
-      // Reserve every cart item (creates an offer at the asking price).
+      // Reserve every available cart item (creates an offer at the asking price).
       const results = await Promise.allSettled(
-        cart.items.map((i) =>
+        buyable.map((i) =>
           fetch("/api/offers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -76,19 +129,31 @@ export default function CartPage() {
           />
         ) : (
           <div className="space-y-3">
-            {cart.items.map((i) => (
-              <Card key={i.listingId} inset>
+            {cart.items.map((i) => {
+              const avail = availability(i.listingId);
+              return (
+              <Card key={i.listingId} inset className={avail ? "opacity-75" : undefined}>
                 <div className="flex items-center gap-3">
-                  {i.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={i.photoUrl} alt={i.crop} className="h-16 w-16 rounded-xl object-cover" />
-                  ) : (
-                    <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary-50 text-primary">
-                      <Sprout className="h-6 w-6" />
-                    </span>
-                  )}
+                  <CropThumb
+                    crop={i.crop}
+                    photoUrl={i.photoUrl}
+                    className="h-16 w-16 shrink-0 rounded-xl"
+                    emojiClass="text-2xl"
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-ink">{capitalize(i.crop)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-ink">{capitalize(i.crop)}</p>
+                      {avail === "sold" && (
+                        <span className="rounded-pill bg-danger-50 px-2 py-0.5 text-xs font-bold text-danger">
+                          {t("cart.outOfStock")}
+                        </span>
+                      )}
+                      {avail === "expired" && (
+                        <span className="rounded-pill bg-warning-50 px-2 py-0.5 text-xs font-bold text-warning">
+                          {t("cart.expired")}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-slate">
                       ₹{i.price}/kg · {i.farmerName}
                     </p>
@@ -129,7 +194,8 @@ export default function CartPage() {
                   <PriceChip amount={i.qty * i.price} unit="" />
                 </div>
               </Card>
-            ))}
+              );
+            })}
 
             <Card inset className="space-y-2">
               <div className="flex items-center justify-between">
@@ -158,8 +224,8 @@ export default function CartPage() {
                 ₹{cart.subtotal.toLocaleString("en-IN")}
               </p>
             </div>
-            <Button size="lg" loading={busy} onClick={checkout}>
-              {t("cart.reserveAll")} ({cart.count})
+            <Button size="lg" loading={busy} onClick={checkout} disabled={buyableCount === 0}>
+              {t("cart.reserveAll")} ({buyableCount})
             </Button>
           </div>
         </div>

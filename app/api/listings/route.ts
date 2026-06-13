@@ -84,7 +84,7 @@ export const GET = handle(async (req) => {
   if (f.max_price !== undefined) q = q.lte("offer_price", f.max_price);
   if (f.negotiable !== undefined) q = q.eq("is_negotiable", f.negotiable);
   if (f.organic !== undefined) q = q.eq("is_organic", f.organic);
-  if (f.verified === true) q = q.not("ai_quality_label", "is", null);
+  if (f.verified === true) q = q.not("crop_photo_url", "is", null);
 
   q = q.order("created_at", { ascending: false }).limit(f.limit);
 
@@ -125,7 +125,7 @@ export const GET = handle(async (req) => {
     const p = (profiles ?? []).find((x) => x.id === l.farmer_id);
     return {
       ...l,
-      verified: !!l.ai_quality_label,
+      verified: !!l.crop_photo_url,
       farmer: p
         ? {
             id: p.id!,

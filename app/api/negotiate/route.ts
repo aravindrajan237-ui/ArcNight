@@ -3,6 +3,11 @@ import { handle, ok, parseBody, requireUser } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimatePrice } from "@/lib/pricing";
 import { getGeminiModel } from "@/lib/ai";
+import { getLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/config";
+
+const LANG_NAME: Record<string, string> = { en: "English", hi: "Hindi", ta: "Tamil" };
 
 // Calls the pricing engine + Gemini per request — never prerender.
 export const dynamic = "force-dynamic";
@@ -42,9 +47,10 @@ const clamp = (v: number, lo: number, hi: number) =>
 export const POST = handle(async (req) => {
   const { user } = await requireUser();
   const body = await parseBody(req, bodySchema);
+  const locale = getLocale();
 
   // 1) Ground in the fair band from the pricing engine.
-  const band = await estimatePrice(body.crop, body.region);
+  const band = await estimatePrice(body.crop, body.region, locale);
   const haveBand = band.estimate > 0 && band.high > 0;
   const low = haveBand ? band.low : Math.round(body.current_offer * 0.9);
   const high = haveBand ? band.high : Math.round(body.current_offer * 1.1);
@@ -52,7 +58,7 @@ export const POST = handle(async (req) => {
 
   // 2) Ask Gemini to mediate (grounded + constrained). Falls back to a
   //    deterministic mediator note if Gemini is unavailable or misbehaves.
-  let message = defaultMediatorNote(body.current_offer, low, high, mid);
+  let message = defaultMediatorNote(locale, body.current_offer, low, high, mid);
   let recommended = clamp(mid, low, high);
 
   const model = getGeminiModel({ json: true });
@@ -74,6 +80,7 @@ ${history || "(no messages yet)"}
 Rules:
 - recommended_price MUST be within [${low}, ${high}]. Never outside this band.
 - "message" must be neutral, encouraging, and AT MOST 2 sentences of reasoning.
+- Write "message" in ${LANG_NAME[locale] ?? "English"}.
 Respond ONLY as JSON: {"message": string, "recommended_price": number}`;
 
       const res = await model.generateContent(prompt);
@@ -134,16 +141,14 @@ function twoSentences(text: string): string {
 }
 
 function defaultMediatorNote(
+  locale: string,
   offer: number,
   low: number,
   high: number,
   mid: number,
 ): string {
-  if (offer < low) {
-    return `The current offer of ₹${offer}/kg sits below the fair band of ₹${low}–₹${high}/kg. A price near ₹${mid}/kg would be fair to both sides.`;
-  }
-  if (offer > high) {
-    return `The current offer of ₹${offer}/kg is above the fair band of ₹${low}–₹${high}/kg. Settling closer to ₹${mid}/kg keeps the deal fair for the buyer.`;
-  }
-  return `The offer of ₹${offer}/kg is within the fair band of ₹${low}–₹${high}/kg. This looks like a reasonable, fair price for both sides.`;
+  const vars = { offer, low, high, mid };
+  if (offer < low) return translate(locale as Locale, "neg.below", vars);
+  if (offer > high) return translate(locale as Locale, "neg.above", vars);
+  return translate(locale as Locale, "neg.within", vars);
 }

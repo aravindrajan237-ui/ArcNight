@@ -1,5 +1,6 @@
 import { handle, ok, fail } from "@/lib/api";
 import { estimatePrice } from "@/lib/pricing";
+import { getLocale } from "@/lib/i18n/server";
 
 // Reads live history + may call data.gov.in — never prerender at build time.
 export const dynamic = "force-dynamic";
@@ -19,6 +20,6 @@ export const GET = handle(async (req) => {
     return fail(400, "Both `crop` and `region` query params are required.");
   }
 
-  const estimate = await estimatePrice(crop, region);
+  const estimate = await estimatePrice(crop, region, getLocale());
   return ok(estimate);
 });

@@ -8,7 +8,6 @@ import {
   Sparkles,
   Loader2,
   TrendingUp,
-  CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -18,7 +17,6 @@ import {
   Stepper,
   SegmentedToggle,
   Card,
-  Badge,
   PriceChip,
   useToast,
 } from "@/components/ui";
@@ -73,7 +71,6 @@ export default function NewListingPage() {
   const [customRegion, setCustomRegion] = useState("");
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [quality, setQuality] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
 
   const [estimate, setEstimate] = useState<Estimate | null>(null);
@@ -129,32 +126,24 @@ export default function NewListingPage() {
     }
   }
 
-  // ---- Photo → AI verification ----
+  // ---- Photo upload ----
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setVerifying(true);
-    setQuality(null);
     try {
       const fd = new FormData();
       fd.append("image", file);
       const res = await fetch("/api/verify-crop", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) {
-        toast.error("Couldn't verify", json.error ?? "Try another photo.");
+        toast.error(t("nl.photoFailed"), json.error ?? undefined);
         return;
       }
-      const d = json.data;
-      setPhotoUrl(d.crop_photo_url ?? null);
-      setQuality(d.ai_quality_label ?? null);
-      if (!crop && d.crop_type) {
-        const match = CROPS.find((c) => c.key === d.crop_type);
-        selectCrop(match?.key ?? "other", d.crop_type);
-        if (!match) setCrop(d.crop_type);
-      }
-      toast.success("Crop verified", d.ai_quality_label ?? undefined);
+      setPhotoUrl(json.data.crop_photo_url ?? null);
+      toast.success(t("nl.photoAdded"));
     } catch {
-      toast.error("Upload failed", "Check your connection and retry.");
+      toast.error(t("nl.photoFailed"), "Check your connection and retry.");
     } finally {
       setVerifying(false);
     }
@@ -205,7 +194,6 @@ export default function NewListingPage() {
           is_organic: organic === "yes",
           is_negotiable: negotiable === "yes",
           crop_photo_url: photoUrl ?? undefined,
-          ai_quality_label: quality ?? undefined,
           location_label: regionValue || undefined,
         }),
       });
@@ -370,17 +358,9 @@ export default function NewListingPage() {
             )}
             <span className="flex-1">
               <span className="block font-semibold text-ink">
-                {verifying ? t("nl.analysing") : photoUrl ? t("nl.changePhoto") : t("nl.addPhoto")}
+                {verifying ? t("nl.uploading") : photoUrl ? t("nl.changePhoto") : t("nl.addPhoto")}
               </span>
-              {quality ? (
-                <Badge tone="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
-                  {quality}
-                </Badge>
-              ) : (
-                <span className="text-sm text-slate">
-                  {t("nl.photoHint")}
-                </span>
-              )}
+              <span className="text-sm text-slate">{t("nl.photoHint")}</span>
             </span>
           </button>
         </Field>

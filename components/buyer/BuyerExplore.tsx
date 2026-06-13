@@ -301,7 +301,7 @@ function FilterSheet({
               onChange={(v) => setD({ ...d, negotiable: v })}
             />
             <Toggle
-              label="AI-verified only"
+              label="With photo only"
               icon={<ShieldCheck className="h-4 w-4 text-primary" />}
               on={d.verified}
               onChange={(v) => setD({ ...d, verified: v })}

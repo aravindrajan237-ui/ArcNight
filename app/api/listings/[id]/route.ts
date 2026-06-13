@@ -29,7 +29,7 @@ export const GET = handle(async (_req, { params }) => {
 
   return ok({
     ...listing,
-    verified: !!listing.ai_quality_label,
+    verified: !!listing.crop_photo_url,
     farmer: farmer ?? null,
   });
 });
