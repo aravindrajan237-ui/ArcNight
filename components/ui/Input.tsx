@@ -113,7 +113,9 @@ export function Stepper({
   max?: number;
   suffix?: string;
 }) {
-  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  // Keep up to 2 decimals (e.g. 30.5 kg) and clamp into range.
+  const clamp = (v: number) =>
+    Math.round(Math.min(max, Math.max(min, Number.isFinite(v) ? v : min)) * 100) / 100;
   return (
     <div className="flex items-stretch gap-3">
       <button
@@ -127,12 +129,13 @@ export function Stepper({
       <div className="relative flex h-16 flex-1 items-center justify-center rounded-2xl bg-mist">
         <input
           type="number"
-          inputMode="numeric"
+          inputMode="decimal"
+          step="any"
           aria-label="quantity"
           value={value}
           min={min}
           max={max}
-          onChange={(e) => onChange(clamp(Math.floor(Number(e.target.value) || 0)))}
+          onChange={(e) => onChange(clamp(Number(e.target.value) || 0))}
           className="h-full w-full rounded-2xl bg-transparent pr-10 text-center text-2xl font-bold tabular-nums text-ink outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <span className="pointer-events-none absolute right-4 text-base font-semibold text-slate">

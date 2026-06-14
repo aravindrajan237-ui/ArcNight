@@ -102,8 +102,9 @@ export function listenOnce(lang: VoiceLang): Promise<string> {
 }
 
 /**
- * Send a transcript to the server parser (Gemini). Resolves to a ParsedListing;
- * on any failure resolves to all-null so the form simply isn't pre-filled.
+ * Send a transcript to the server parser (Gemini), then fill any gaps with a
+ * local keyword parser. The local fallback means the crop + quantity are still
+ * recognised even when Gemini is unavailable (e.g. no API key in this env).
  */
 export async function parseListingSpeech(
   transcript: string,
@@ -116,16 +117,71 @@ export async function parseListingSpeech(
   };
   if (!transcript.trim()) return empty;
 
+  const local = localParseListing(transcript);
+
+  let server: ParsedListing = empty;
   try {
     const res = await fetch("/api/voice-parse", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transcript, lang }),
     });
-    if (!res.ok) return empty;
-    const json = await res.json();
-    return (json?.data as ParsedListing) ?? empty;
+    if (res.ok) server = ((await res.json())?.data as ParsedListing) ?? empty;
   } catch {
-    return empty;
+    /* fall back to local parse only */
   }
+
+  // Prefer the server (Gemini) result, fall back to the local parse field-by-field.
+  return {
+    crop: server.crop ?? local.crop,
+    quantity_kg: server.quantity_kg ?? local.quantity_kg,
+    harvest_in_days: server.harvest_in_days ?? local.harvest_in_days,
+  };
+}
+
+/** Crop keyword table (English + Hindi + Tamil + common romanisations). */
+const CROP_WORDS: { key: string; words: string[] }[] = [
+  { key: "tomato", words: ["tomato", "tamatar", "tamaatar", "टमाटर", "தக்காளி", "thakkali", "takkali"] },
+  { key: "onion", words: ["onion", "pyaaz", "pyaz", "kanda", "प्याज", "வெங்காயம்", "vengayam"] },
+  { key: "potato", words: ["potato", "aloo", "alu", "आलू", "உருளைக்கிழங்கு", "urulaikizhangu", "urulai"] },
+  { key: "chilli", words: ["chilli", "chili", "chillies", "mirch", "mirchi", "मिर्च", "மிளகாய்", "milagai"] },
+  { key: "banana", words: ["banana", "kela", "केला", "வாழைப்பழம்", "vazhaipazham", "vazhai"] },
+  { key: "mango", words: ["mango", "aam", "आम", "மாம்பழம்", "mambazham"] },
+  { key: "rice", words: ["rice", "paddy", "chawal", "चावल", "அரிசி", "arisi", "nellu"] },
+  { key: "wheat", words: ["wheat", "gehu", "gehun", "गेहूं", "கோதுமை", "gothumai"] },
+  { key: "corn", words: ["corn", "maize", "makka", "मक्का", "சோளம்", "cholam"] },
+  { key: "carrot", words: ["carrot", "gajar", "गाजर", "கேரட்"] },
+  { key: "grape", words: ["grape", "grapes", "angoor", "अंगूर", "திராட்சை"] },
+  { key: "apple", words: ["apple", "seb", "सेब", "ஆப்பிள்"] },
+];
+
+/**
+ * Best-effort offline parse of a spoken listing sentence. Matches a crop by
+ * keyword and a quantity by digits + unit (kg / quintal / ton). Returns nulls
+ * for anything it can't find.
+ */
+export function localParseListing(transcript: string): ParsedListing {
+  const text = transcript.toLowerCase();
+
+  let crop: string | null = null;
+  for (const { key, words } of CROP_WORDS) {
+    if (words.some((w) => text.includes(w.toLowerCase()))) {
+      crop = key;
+      break;
+    }
+  }
+
+  let quantity_kg: number | null = null;
+  const m = text.match(
+    /(\d+(?:\.\d+)?)\s*(quintal|क्विंटल|tonnes?|tons?|टन|kgs?|kilograms?|kilos?|kilo|किलो|கிலோ)?/i,
+  );
+  if (m) {
+    let q = parseFloat(m[1]);
+    const unit = (m[2] ?? "").toLowerCase();
+    if (unit.includes("quintal") || unit.includes("क्विंटल")) q *= 100;
+    else if (unit.includes("ton") || unit.includes("टन")) q *= 1000;
+    if (Number.isFinite(q) && q > 0) quantity_kg = Math.round(q * 100) / 100;
+  }
+
+  return { crop, quantity_kg, harvest_in_days: null };
 }

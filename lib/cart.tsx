@@ -63,7 +63,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo<CartApi>(() => {
     const clampQty = (qty: number, available: number) =>
-      Math.min(available, Math.max(1, Math.floor(qty || 1)));
+      Math.round(Math.min(available, Math.max(1, qty || 1)) * 100) / 100;
 
     return {
       items,

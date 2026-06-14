@@ -64,7 +64,10 @@ function LoginInner() {
       setError(t("auth.usernameHint"));
       return;
     }
-    if (password.length < 6) {
+    // Only enforce the length rule when CREATING a password. On sign-in we let
+    // Supabase decide, so a wrong password shows "Invalid username or password"
+    // instead of a misleading "at least 6 characters" hint.
+    if (mode === "signup" && password.length < 6) {
       setError(t("auth.passwordHint"));
       return;
     }

@@ -38,7 +38,9 @@ export function ReserveButton({
   const [qty, setQty] = useState(available);
   const [busy, setBusy] = useState(false);
 
-  const clamp = (v: number) => Math.min(available, Math.max(1, Math.floor(v || 1)));
+  // Allow fractional kg (e.g. 20.5), keep 2 decimals, clamp to 1..available.
+  const clamp = (v: number) =>
+    Math.round(Math.min(available, Math.max(1, v || 1)) * 100) / 100;
 
   async function reserve() {
     if (qty > available) {
@@ -95,7 +97,8 @@ export function ReserveButton({
           </button>
           <input
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
+            step="any"
             value={qty}
             onChange={(e) => setQty(clamp(Number(e.target.value)))}
             className={cn(

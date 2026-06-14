@@ -198,6 +198,8 @@ export default function CartPage() {
                     </button>
                     <input
                       type="number"
+                      inputMode="decimal"
+                      step="any"
                       value={i.qty}
                       onChange={(e) => cart.update(i.listingId, Number(e.target.value))}
                       className="h-9 w-16 rounded-lg border border-mist px-2 text-center font-bold tabular-nums outline-none"

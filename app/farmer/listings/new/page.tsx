@@ -116,7 +116,7 @@ export default function NewListingPage() {
         selectCrop(match?.key ?? "other", parsed.crop);
         if (!match) setCrop(parsed.crop);
       }
-      if (parsed.quantity_kg) setQty(Math.round(parsed.quantity_kg));
+      if (parsed.quantity_kg) setQty(Math.round(parsed.quantity_kg * 100) / 100);
       if (parsed.harvest_in_days) setHarvestDate(dateInDays(parsed.harvest_in_days));
       toast.success("Form pre-filled", "Review and adjust below.");
     } catch (e) {
