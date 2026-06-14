@@ -120,7 +120,7 @@ export function BuyerExplore({
       {/* Search + controls */}
       <div className="sticky top-0 z-20 space-y-3 border-b border-mist bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate" />
             <input
               value={filters.crop}

@@ -137,6 +137,7 @@ const en: Dict = {
   "cart.reserveAll": "Reserve all",
   "cart.outOfStock": "Out of stock",
   "cart.expired": "Expired",
+  "cart.onlyLeft": "Only {n} kg left",
   "cart.noneAvailable": "None of these items are available anymore.",
   // orders
   "orders.title": "My orders",
@@ -357,6 +358,7 @@ const hi: Dict = {
   "cart.reserveAll": "सभी आरक्षित करें",
   "cart.outOfStock": "स्टॉक खत्म",
   "cart.expired": "समाप्त",
+  "cart.onlyLeft": "केवल {n} किग्रा शेष",
   "cart.noneAvailable": "इनमें से कोई भी वस्तु अब उपलब्ध नहीं है।",
   "orders.title": "मेरे ऑर्डर",
   "orders.empty": "अभी कोई ऑर्डर नहीं",
@@ -569,6 +571,7 @@ const ta: Dict = {
   "cart.reserveAll": "அனைத்தையும் முன்பதிவு",
   "cart.outOfStock": "கையிருப்பு இல்லை",
   "cart.expired": "காலாவதி",
+  "cart.onlyLeft": "{n} கி.கி மட்டுமே மீதம்",
   "cart.noneAvailable": "இந்தப் பொருட்கள் எதுவும் இப்போது கிடைக்கவில்லை.",
   "orders.title": "என் ஆர்டர்கள்",
   "orders.empty": "இன்னும் ஆர்டர்கள் இல்லை",

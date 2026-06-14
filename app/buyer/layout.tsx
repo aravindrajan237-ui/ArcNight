@@ -15,7 +15,7 @@ export default function BuyerLayout({
         <DemoBar />
         <div className="flex min-h-screen bg-surface">
           <BuyerNav />
-          <div className="flex-1 pb-[76px] md:pb-0">{children}</div>
+          <div className="min-w-0 flex-1 pb-[76px] md:pb-0">{children}</div>
         </div>
       </ToastProvider>
     </CartProvider>

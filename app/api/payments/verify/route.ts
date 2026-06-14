@@ -65,10 +65,32 @@ export const POST = handle(async (req) => {
     .single();
   if (updErr) throw new Error(updErr.message);
 
-  await admin
+  // Decrement the listing's available quantity by what was just bought. If
+  // stock remains, the listing stays OPEN and listed (so other buyers can buy
+  // the rest); when it's fully sold we mark it paid. NOTE: the schema enforces
+  // `quantity_kg > 0`, so on a full sell-out we only flip the status (writing 0
+  // would violate the constraint and silently leave the listing available).
+  const boughtQty = Number(deal.final_qty_kg ?? 0);
+  const { data: listingRow } = await admin
     .from("harvest_listings")
-    .update({ status: "paid" })
+    .select("quantity_kg")
+    .eq("id", deal.listing_id)
+    .single();
+  const remaining = Math.max(
+    0,
+    +(Number(listingRow?.quantity_kg ?? 0) - boughtQty).toFixed(2),
+  );
+  const listingUpdate: { status: "open" | "paid"; quantity_kg?: number } =
+    remaining > 0
+      ? { quantity_kg: remaining, status: "open" }
+      : { status: "paid" };
+  const { error: decErr } = await admin
+    .from("harvest_listings")
+    .update(listingUpdate)
     .eq("id", deal.listing_id);
+  if (decErr) {
+    console.error("[payments/verify] stock update failed:", decErr.message);
+  }
 
   // 3) Ensure the agreement PDF exists (regenerate if it's somehow missing).
   //    Wrapped so a Storage hiccup never crashes an already-verified payment.

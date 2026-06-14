@@ -42,16 +42,35 @@ export const POST = handle(async (req) => {
     throw new ApiError(403, "You are not a party to this offer");
   }
 
-  // One deal per listing (the listing is reserved once a deal exists).
-  const { data: existing } = await admin
+  const qty = Number(offer.proposed_qty_kg);
+  const price = Number(offer.proposed_price);
+
+  // Only one purchase can be IN PROGRESS at a time (an unpaid deal). Once it's
+  // paid the stock decrements and the rest can be sold again.
+  const { data: activeDeal } = await admin
     .from("deals")
     .select("id")
     .eq("listing_id", offer.listing_id)
+    .eq("status", "awaiting_advance")
     .maybeSingle();
-  if (existing) throw new ApiError(409, "A deal already exists for this listing");
+  if (activeDeal) {
+    throw new ApiError(409, "This harvest already has a purchase in progress — please try again shortly.");
+  }
 
-  const qty = Number(offer.proposed_qty_kg);
-  const price = Number(offer.proposed_price);
+  // The requested quantity must still be available (stock left after prior sales).
+  const { data: stockRow } = await admin
+    .from("harvest_listings")
+    .select("quantity_kg, status")
+    .eq("id", offer.listing_id)
+    .single();
+  const available = Number(stockRow?.quantity_kg ?? 0);
+  if (stockRow?.status === "paid" || available <= 0) {
+    throw new ApiError(409, "This harvest is sold out.");
+  }
+  if (qty > available) {
+    throw new ApiError(409, `Only ${available} kg remain — please lower the quantity.`);
+  }
+
   const total = +(qty * price).toFixed(2);
   const advance = +(total * ADVANCE_RATE).toFixed(2);
 
@@ -74,11 +93,9 @@ export const POST = handle(async (req) => {
 
   if (dealErr || !deal) throw new Error(dealErr?.message ?? "Deal insert failed");
 
-  // Reserve the listing and mark the offer's siblings closed.
-  await admin
-    .from("harvest_listings")
-    .update({ status: "reserved" })
-    .eq("id", offer.listing_id);
+  // NOTE: we intentionally do NOT reserve/close the listing here. It stays open
+  // and listed; the available quantity is decremented only when the advance is
+  // paid (see /api/payments/verify), so any remaining stock stays purchasable.
 
   // Generate + upload the agreement PDF, save its URL (graceful: null on failure).
   const agreement_pdf_url = await buildAndUploadAgreement(admin, deal.id);

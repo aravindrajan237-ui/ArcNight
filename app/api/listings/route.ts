@@ -76,7 +76,11 @@ export const GET = handle(async (req) => {
   const { searchParams } = new URL(req.url);
   const f = listingFiltersSchema.parse(Object.fromEntries(searchParams));
 
-  let q = admin.from("harvest_listings").select("*").eq("status", "open");
+  let q = admin
+    .from("harvest_listings")
+    .select("*")
+    .eq("status", "open")
+    .gt("quantity_kg", 0);
 
   if (f.crop) q = q.ilike("crop", `%${f.crop}%`);
   if (f.harvest_before) q = q.lte("expected_harvest_date", f.harvest_before);

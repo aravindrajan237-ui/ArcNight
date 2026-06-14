@@ -42,11 +42,8 @@ export const POST = handle(async (req, { params }) => {
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    // Reserve the listing while the deal is set up.
-    await admin
-      .from("harvest_listings")
-      .update({ status: "reserved" })
-      .eq("id", offer.listing_id);
+    // The listing stays open — stock is only decremented when the advance is
+    // paid, so any remaining quantity is still available to other buyers.
     return ok({ action: "accept", offer: data });
   }
 

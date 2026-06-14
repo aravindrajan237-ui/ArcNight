@@ -24,9 +24,10 @@ export default function CartPage() {
   const t = useT();
   const [busy, setBusy] = useState(false);
 
-  // Live availability for each cart item: a listing someone else has already
-  // reserved/bought is "out of stock"; one past its harvest date is "expired".
-  type Live = { status: string; expected_harvest_date: string | null };
+  // Live availability for each cart item: a listing that's fully sold is "out of
+  // stock"; one past its harvest date is "expired"; one where another buyer took
+  // part of the stock shows "only N kg left".
+  type Live = { status: string; available_kg: number; expected_harvest_date: string | null };
   const [live, setLive] = useState<Record<string, Live>>({});
   const today = new Date().toISOString().slice(0, 10);
 
@@ -56,24 +57,36 @@ export default function CartPage() {
     };
   }, [ids]);
 
-  // status: null = available, "sold" = bought by someone, "expired" = past date
-  function availability(listingId: string): null | "sold" | "expired" {
-    const s = live[listingId];
-    if (!s) return null;
-    if (s.status !== "open") return "sold";
-    if (s.expected_harvest_date && s.expected_harvest_date < today) return "expired";
-    return null;
+  // Per-item availability. Returns the kind of issue plus how many kg are left.
+  type Avail =
+    | { kind: "ok" }
+    | { kind: "sold" }
+    | { kind: "expired" }
+    | { kind: "limited"; left: number };
+  function availability(item: { listingId: string; qty: number }): Avail {
+    const s = live[item.listingId];
+    if (!s) return { kind: "ok" };
+    if (s.status !== "open" || s.available_kg <= 0) return { kind: "sold" };
+    if (s.expected_harvest_date && s.expected_harvest_date < today) return { kind: "expired" };
+    if (s.available_kg < item.qty) return { kind: "limited", left: s.available_kg };
+    return { kind: "ok" };
   }
 
   const buyableCount = useMemo(
-    () => cart.items.filter((i) => availability(i.listingId) === null).length,
+    () => cart.items.filter((i) => {
+      const a = availability(i);
+      return a.kind === "ok" || a.kind === "limited";
+    }).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cart.items, live, today],
   );
 
   async function checkout() {
     if (cart.items.length === 0) return;
-    const buyable = cart.items.filter((i) => availability(i.listingId) === null);
+    // Buyable = available now; "limited" items are reserved up to what's left.
+    const buyable = cart.items
+      .map((i) => ({ item: i, a: availability(i) }))
+      .filter(({ a }) => a.kind === "ok" || a.kind === "limited");
     if (buyable.length === 0) {
       toast.error(t("cart.noneAvailable"));
       return;
@@ -82,14 +95,14 @@ export default function CartPage() {
     try {
       // Reserve every available cart item (creates an offer at the asking price).
       const results = await Promise.allSettled(
-        buyable.map((i) =>
+        buyable.map(({ item: i, a }) =>
           fetch("/api/offers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               listing_id: i.listingId,
               proposed_price: i.price,
-              proposed_qty_kg: i.qty,
+              proposed_qty_kg: a.kind === "limited" ? a.left : i.qty,
             }),
           }).then((r) => {
             if (!r.ok) throw new Error();
@@ -129,9 +142,10 @@ export default function CartPage() {
         ) : (
           <div className="space-y-3">
             {cart.items.map((i) => {
-              const avail = availability(i.listingId);
+              const avail = availability(i);
+              const dim = avail.kind === "sold" || avail.kind === "expired";
               return (
-              <Card key={i.listingId} inset className={avail ? "opacity-75" : undefined}>
+              <Card key={i.listingId} inset className={dim ? "opacity-75" : undefined}>
                 <div className="flex items-center gap-3">
                   {i.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -142,16 +156,21 @@ export default function CartPage() {
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-bold text-ink">{capitalize(i.crop)}</p>
-                      {avail === "sold" && (
+                      {avail.kind === "sold" && (
                         <span className="rounded-pill bg-danger-50 px-2 py-0.5 text-xs font-bold text-danger">
                           {t("cart.outOfStock")}
                         </span>
                       )}
-                      {avail === "expired" && (
+                      {avail.kind === "expired" && (
                         <span className="rounded-pill bg-warning-50 px-2 py-0.5 text-xs font-bold text-warning">
                           {t("cart.expired")}
+                        </span>
+                      )}
+                      {avail.kind === "limited" && (
+                        <span className="rounded-pill bg-warning-50 px-2 py-0.5 text-xs font-bold text-warning">
+                          {t("cart.onlyLeft", { n: avail.left })}
                         </span>
                       )}
                     </div>
@@ -183,7 +202,9 @@ export default function CartPage() {
                       onChange={(e) => cart.update(i.listingId, Number(e.target.value))}
                       className="h-9 w-16 rounded-lg border border-mist px-2 text-center font-bold tabular-nums outline-none"
                     />
-                    <span className="text-sm text-slate">/ {i.available} kg</span>
+                    <span className="text-sm text-slate">
+                      / {live[i.listingId]?.available_kg ?? i.available} kg
+                    </span>
                     <button
                       onClick={() => cart.update(i.listingId, i.qty + 10)}
                       aria-label="increase"

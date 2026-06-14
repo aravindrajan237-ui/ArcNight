@@ -24,7 +24,7 @@ export default function FarmerLayout({
       <DemoBar />
       <div className="flex min-h-screen bg-surface">
         <Sidebar items={nav} />
-        <div className="flex-1 pb-[76px] md:pb-0">{children}</div>
+        <div className="min-w-0 flex-1 pb-[76px] md:pb-0">{children}</div>
         <BottomNav items={nav} />
       </div>
     </ToastProvider>

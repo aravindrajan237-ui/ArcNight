@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/i18n/server";
@@ -27,6 +27,11 @@ export const metadata: Metadata = {
   },
   description:
     "Fair harvest contracts with 0% platform commission. Negotiate, agree, and pay an advance — directly between farmers and buyers.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

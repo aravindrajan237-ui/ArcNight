@@ -12,7 +12,7 @@ export function ListingCard({ l }: { l: ListingWithFarmer }) {
   const t = useT();
   const stars = (l.farmer?.trust_score ?? 0) / 20;
   return (
-    <Link href={`/buyer/listings/${l.id}`}>
+    <Link href={`/buyer/listings/${l.id}`} className="block min-w-0">
       <Card interactive className="overflow-hidden">
         <div className="relative">
           {l.crop_photo_url ? (
@@ -45,9 +45,9 @@ export function ListingCard({ l }: { l: ListingWithFarmer }) {
 
         <div className="space-y-2 p-4">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-bold text-ink">{capitalize(l.crop)}</h3>
-              <p className="text-sm text-slate">
+            <div className="min-w-0">
+              <h3 className="truncate font-bold text-ink">{capitalize(l.crop)}</h3>
+              <p className="truncate text-sm text-slate">
                 {Number(l.quantity_kg)} kg{l.variety ? ` · ${l.variety}` : ""}
               </p>
             </div>
