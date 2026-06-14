@@ -17,30 +17,43 @@ export const dynamic = "force-dynamic";
  */
 export const POST = handle(async (req) => {
   const { user } = await requireUser();
-  const { deal_id } = await parseBody(req, paymentOrderSchema);
+  const { deal_id, kind } = await parseBody(req, paymentOrderSchema);
   const admin = createAdminClient();
 
   const { data: deal, error } = await admin
     .from("deals")
-    .select("id, buyer_id, advance_amount, advance_paid, status")
+    .select("id, buyer_id, total_amount, advance_amount, advance_paid, status")
     .eq("id", deal_id)
     .single();
 
   if (error || !deal) throw new ApiError(404, "Deal not found");
   if (deal.buyer_id !== user.id) {
-    throw new ApiError(403, "Only the buyer can pay the advance");
+    throw new ApiError(403, "Only the buyer can pay for this order");
   }
-  if (deal.advance_paid) throw new ApiError(409, "Advance already paid");
 
-  const advanceInr = Number(deal.advance_amount);
+  // Decide the amount + guards for this payment stage.
+  let amountInr: number;
+  if (kind === "final") {
+    if (!deal.advance_paid) {
+      throw new ApiError(409, "Pay the advance before the balance.");
+    }
+    if (deal.status === "fulfilled") {
+      throw new ApiError(409, "This order is already paid in full.");
+    }
+    amountInr = +(Number(deal.total_amount) - Number(deal.advance_amount)).toFixed(2);
+  } else {
+    if (deal.advance_paid) throw new ApiError(409, "Advance already paid");
+    amountInr = Number(deal.advance_amount);
+  }
+
   // Razorpay rejects amounts under ₹1 (100 paise).
-  if (!Number.isFinite(advanceInr) || advanceInr < 1) {
-    throw new ApiError(400, "Advance amount is too small to process.");
+  if (!Number.isFinite(amountInr) || amountInr < 1) {
+    throw new ApiError(400, "Amount is too small to process.");
   }
 
   let order;
   try {
-    order = await createAdvanceOrder({ amountInr: advanceInr, dealId: deal.id });
+    order = await createAdvanceOrder({ amountInr, dealId: deal.id, kind });
   } catch (err) {
     // Surface a clean gateway error instead of an unhandled 500.
     const desc =
@@ -51,12 +64,12 @@ export const POST = handle(async (req) => {
     throw new ApiError(502, `Could not start payment: ${desc}`);
   }
 
-  // Record the pending advance payment so /verify can cross-check the order id.
+  // Record the pending payment so /verify can cross-check the order id + type.
   const { error: payErr } = await admin.from("payments").insert({
     deal_id: deal.id,
     payer_id: user.id,
-    amount: Number(deal.advance_amount),
-    type: "advance",
+    amount: amountInr,
+    type: kind,
     provider: "razorpay",
     provider_order_id: order.id,
     status: "created",

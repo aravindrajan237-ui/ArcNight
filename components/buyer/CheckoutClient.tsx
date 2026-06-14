@@ -37,6 +37,7 @@ export function CheckoutClient({
   total,
   advance,
   balance,
+  kind = "advance",
 }: {
   dealId: string;
   crop: string;
@@ -45,10 +46,14 @@ export function CheckoutClient({
   total: number;
   advance: number;
   balance: number;
+  kind?: "advance" | "final";
 }) {
   const toast = useToast();
   const t = useT();
-  const [signed, setSigned] = useState(false);
+  const isFinal = kind === "final";
+  const payAmount = isFinal ? balance : advance;
+  // The agreement is e-signed at the advance stage; the balance needs no re-sign.
+  const [signed, setSigned] = useState(isFinal);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -63,7 +68,7 @@ export function CheckoutClient({
       const orderRes = await fetch("/api/payments/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deal_id: dealId }),
+        body: JSON.stringify({ deal_id: dealId, kind }),
       });
       const order = await orderRes.json();
       if (!orderRes.ok) throw new Error(order.error ?? "Could not create order");
@@ -77,7 +82,7 @@ export function CheckoutClient({
         amount: order.data.amount,
         currency: order.data.currency,
         name: "HarvestLink",
-        description: `Advance for ${crop} (${qty} kg)`,
+        description: `${isFinal ? "Balance" : "Advance"} for ${crop} (${qty} kg)`,
         theme: { color: "#1F6B3B" },
         handler: async (resp: RazorpayResponse) => {
           try {
@@ -95,7 +100,10 @@ export function CheckoutClient({
             if (!verifyRes.ok) throw new Error(v.error ?? "Verification failed");
             setPdfUrl(v.data.agreement_pdf_url ?? null);
             setDone(true);
-            toast.success("Advance paid 🎉", "Your agreement is ready to download.");
+            toast.success(
+              isFinal ? "Balance paid 🎉" : "Advance paid 🎉",
+              isFinal ? "Your order is now complete." : "Your agreement is ready to download.",
+            );
           } catch (e) {
             toast.error("Verification failed", e instanceof Error ? e.message : undefined);
           }
@@ -112,9 +120,9 @@ export function CheckoutClient({
   if (done) {
     return (
       <SuccessState
-        title={t("co.paid")}
-        amount={`₹${advance.toLocaleString("en-IN")}`}
-        subtitle={t("co.paidSub")}
+        title={isFinal ? t("co.balancePaid") : t("co.paid")}
+        amount={`₹${payAmount.toLocaleString("en-IN")}`}
+        subtitle={isFinal ? t("co.balancePaidSub") : t("co.paidSub")}
         actions={
           <>
             {pdfUrl && (
@@ -141,8 +149,17 @@ export function CheckoutClient({
         <Row label={t("co.finalPrice")} value={`₹${finalPrice}/kg`} />
         <Row label={t("co.total")} value={`₹${total.toLocaleString("en-IN")}`} />
         <div className="my-2 border-t border-mist" />
-        <Row label={t("co.advanceNow")} value={`₹${advance.toLocaleString("en-IN")}`} strong />
-        <Row label={t("co.balance")} value={`₹${balance.toLocaleString("en-IN")}`} />
+        {isFinal ? (
+          <>
+            <Row label={t("co.advancePaidRow")} value={`₹${advance.toLocaleString("en-IN")}`} />
+            <Row label={t("co.balanceNow")} value={`₹${balance.toLocaleString("en-IN")}`} strong />
+          </>
+        ) : (
+          <>
+            <Row label={t("co.advanceNow")} value={`₹${advance.toLocaleString("en-IN")}`} strong />
+            <Row label={t("co.balance")} value={`₹${balance.toLocaleString("en-IN")}`} />
+          </>
+        )}
         <div className="mt-2 flex items-center justify-between rounded-xl bg-primary-50 px-3 py-2">
           <span className="flex items-center gap-1.5 text-sm font-bold text-primary-700">
             <BadgePercent className="h-4 w-4" /> {t("co.commission")}
@@ -151,22 +168,24 @@ export function CheckoutClient({
         </div>
       </Card>
 
-      {/* E-sign */}
-      <button
-        onClick={() => setSigned((s) => !s)}
-        className="flex w-full items-start gap-3 rounded-2xl border border-mist bg-white p-4 text-left"
-      >
-        <span
-          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition ${
-            signed ? "border-primary bg-primary text-white" : "border-mist"
-          }`}
+      {/* E-sign (advance only — the agreement is already signed for the balance) */}
+      {!isFinal && (
+        <button
+          onClick={() => setSigned((s) => !s)}
+          className="flex w-full items-start gap-3 rounded-2xl border border-mist bg-white p-4 text-left"
         >
-          {signed && <ShieldCheck className="h-4 w-4" />}
-        </span>
-        <span className="text-sm text-ink">
-          {t("co.esign")}
-        </span>
-      </button>
+          <span
+            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition ${
+              signed ? "border-primary bg-primary text-white" : "border-mist"
+            }`}
+          >
+            {signed && <ShieldCheck className="h-4 w-4" />}
+          </span>
+          <span className="text-sm text-ink">
+            {t("co.esign")}
+          </span>
+        </button>
+      )}
 
       <Button
         size="xl"
@@ -176,7 +195,7 @@ export function CheckoutClient({
         onClick={pay}
         leftIcon={<Lock className="h-5 w-5" />}
       >
-        {t("co.pay")} ₹{advance.toLocaleString("en-IN")}
+        {t("co.pay")} ₹{payAmount.toLocaleString("en-IN")}
       </Button>
       <p className="text-center text-xs text-slate">
         {t("co.payNote")}

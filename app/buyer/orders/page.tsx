@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Receipt, Download, Sprout } from "lucide-react";
+import { Receipt, Sprout, ChevronRight } from "lucide-react";
 import { getMe } from "@/lib/session";
 import {
   AppBar,
   Card,
   StatusPill,
   PriceChip,
-  Button,
   PrimaryButton,
   EmptyState,
   type ListingStatus,
@@ -63,47 +62,43 @@ export default async function BuyerOrders() {
             {deals.map((d) => {
               const li = listingOf(d.listing_id);
               const total = Number(d.total_amount);
-              const advance = Number(d.advance_amount);
+              // CTA hint mirrors the next action on the tracking page.
+              const cta =
+                d.status === "awaiting_advance"
+                  ? t("act.payAdvance")
+                  : d.status === "advance_paid"
+                    ? t("track.payBalance")
+                    : t("track.viewStatus");
               return (
-                <Card key={d.id} inset>
-                  <div className="flex items-center gap-3">
-                    {li?.crop_photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={li.crop_photo_url} alt={li.crop} className="h-14 w-14 rounded-xl object-cover" />
-                    ) : (
-                      <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-50 text-primary">
-                        <Sprout className="h-6 w-6" />
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold capitalize text-ink">{li?.crop ?? "Harvest"}</p>
-                      <p className="text-sm text-slate">
-                        {Number(d.final_qty_kg)} kg · ₹{Number(d.final_price)}/kg
-                      </p>
+                <Link key={d.id} href={`/buyer/orders/${d.id}`}>
+                  <Card interactive inset>
+                    <div className="flex items-center gap-3">
+                      {li?.crop_photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={li.crop_photo_url} alt={li.crop} className="h-14 w-14 rounded-xl object-cover" />
+                      ) : (
+                        <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-50 text-primary">
+                          <Sprout className="h-6 w-6" />
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold capitalize text-ink">{li?.crop ?? "Harvest"}</p>
+                        <p className="text-sm text-slate">
+                          {Number(d.final_qty_kg)} kg · ₹{Number(d.final_price)}/kg
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <StatusPill status={DEAL_TO_PILL[d.status] ?? "reserved"} size="sm" />
+                        <PriceChip amount={total} size="sm" />
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <StatusPill status={DEAL_TO_PILL[d.status] ?? "reserved"} size="sm" />
-                      <PriceChip amount={total} size="sm" />
-                    </div>
-                  </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <span className="text-sm text-slate">
-                      Advance ₹{advance.toLocaleString("en-IN")}
-                    </span>
-                    {d.status === "awaiting_advance" ? (
-                      <Link href={`/buyer/checkout/${d.id}`}>
-                        <PrimaryButton size="sm">{t("act.payAdvance")}</PrimaryButton>
-                      </Link>
-                    ) : d.agreement_pdf_url ? (
-                      <a href={d.agreement_pdf_url} target="_blank" rel="noreferrer">
-                        <Button size="sm" variant="outline" leftIcon={<Download className="h-4 w-4" />}>
-                          {t("act.agreement")}
-                        </Button>
-                      </a>
-                    ) : null}
-                  </div>
-                </Card>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-mist pt-2.5">
+                      <span className="text-sm font-semibold text-primary">{cta}</span>
+                      <ChevronRight className="h-4 w-4 text-slate" />
+                    </div>
+                  </Card>
+                </Link>
               );
             })}
           </div>

@@ -11,11 +11,15 @@ export const dynamic = "force-dynamic";
 
 export default async function BuyerCheckout({
   params,
+  searchParams,
 }: {
   params: { dealId: string };
+  searchParams: { type?: string };
 }) {
   const t = getT();
   const { supabase, user } = await getMe();
+
+  const kind = searchParams.type === "final" ? "final" : "advance";
 
   const { data: deal } = await supabase
     .from("deals")
@@ -25,8 +29,12 @@ export default async function BuyerCheckout({
   if (!deal || deal.buyer_id !== user.id) notFound();
   const d = deal as Deal;
 
-  // Already paid → straight to the order.
-  if (d.advance_paid) redirect("/buyer/orders");
+  // Guard each stage: advance needs an unpaid deal; the balance needs the
+  // advance paid and the order not yet complete. Anything else → back to orders.
+  if (kind === "advance" && d.advance_paid) redirect(`/buyer/orders/${d.id}`);
+  if (kind === "final" && (!d.advance_paid || d.status === "fulfilled")) {
+    redirect(`/buyer/orders/${d.id}`);
+  }
 
   const { data: listing } = await supabase
     .from("harvest_listings")
@@ -40,7 +48,7 @@ export default async function BuyerCheckout({
 
   return (
     <div>
-      <AppBar title={t("co.title")} back="/buyer/orders" />
+      <AppBar title={kind === "final" ? t("co.titleBalance") : t("co.title")} back={`/buyer/orders/${d.id}`} />
       <main className="mx-auto max-w-md px-5 pb-16 pt-6">
         <CheckoutClient
           dealId={d.id}
@@ -50,6 +58,7 @@ export default async function BuyerCheckout({
           total={total}
           advance={advance}
           balance={+(total - advance).toFixed(2)}
+          kind={kind}
         />
         <div className="mt-6 flex justify-center">
           <ReportButton dealId={d.id} label={t("co.reportIssue")} variant="ghost" />

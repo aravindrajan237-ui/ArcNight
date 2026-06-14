@@ -99,6 +99,7 @@ export type CreateDealInput = z.infer<typeof createDealSchema>;
 // ---- Payments ----
 export const paymentOrderSchema = z.object({
   deal_id: z.string().uuid(),
+  kind: z.enum(["advance", "final"]).default("advance"),
 });
 export type PaymentOrderInput = z.infer<typeof paymentOrderSchema>;
 

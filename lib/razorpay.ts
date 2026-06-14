@@ -16,19 +16,25 @@ export function getRazorpay() {
 
 /**
  * Create a TEST order. Amount is in paise (₹1 = 100 paise), so we round the
- * rupee advance and multiply by 100.
+ * rupee amount and multiply by 100. `kind` distinguishes the 15% advance from
+ * the remaining balance ("final") so both receipts stay unique + ≤40 chars.
  */
 export async function createAdvanceOrder(params: {
   amountInr: number;
   dealId: string;
+  kind?: "advance" | "final";
 }) {
   const razorpay = getRazorpay();
+  const isFinal = params.kind === "final";
   return razorpay.orders.create({
     amount: Math.round(params.amountInr * 100),
     currency: "INR",
-    // Razorpay caps receipt at 40 chars; a bare UUID is 36.
-    receipt: params.dealId,
-    notes: { deal_id: params.dealId, purpose: "advance_15pct" },
+    // Razorpay caps receipt at 40 chars; a bare UUID is 36, "f_" + UUID is 38.
+    receipt: isFinal ? `f_${params.dealId}` : params.dealId,
+    notes: {
+      deal_id: params.dealId,
+      purpose: isFinal ? "balance_85pct" : "advance_15pct",
+    },
   });
 }
 
